@@ -1,0 +1,245 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Graviton Compatibility Dashboard";
+}
+
+<div class="text-center mb-5">
+    <h1 class="display-3 text-gradient mb-3">Graviton Compatibility Test Dashboard</h1>
+    <p class="lead">Monitor system compatibility between x86 and ARM architectures</p>
+    <div class="architecture-badge arch-@(Model.SystemInfo.Architecture.ToLower().Contains("arm") ? "arm64" : "x64")">
+        Current System: @Model.SystemInfo.Architecture
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-number">@Model.SystemInfo.Architecture</span>
+        <div class="stat-label">Architecture</div>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">@Model.SystemInfo.ProcessorCount</span>
+        <div class="stat-label">CPU Cores</div>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">@Model.TaskCount</span>
+        <div class="stat-label">Total Tasks</div>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">@Model.CompletedTaskCount</span>
+        <div class="stat-label">Completed</div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>System Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="system-info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Operating System:</div>
+                        <div class="info-value">@Model.SystemInfo.OperatingSystem</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Runtime Version:</div>
+                        <div class="info-value">@Model.SystemInfo.RuntimeVersion</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Machine Name:</div>
+                        <div class="info-value">@Model.SystemInfo.MachineName</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">User Name:</div>
+                        <div class="info-value">@Model.SystemInfo.UserName</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Total Memory:</div>
+                        <div class="info-value">@((Model.SystemInfo.TotalMemory / 1024 / 1024).ToString("N0")) MB</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Last Updated:</div>
+                        <div class="info-value">@Model.SystemInfo.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</div>
+                    </div>
+                </div>
+                <button id="refreshSystemInfo" class="btn btn-primary">Refresh System Info</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Performance Benchmarks</h5>
+            </div>
+            <div class="card-body">
+                <div class="benchmark-controls">
+                    <button id="runCpuBenchmark" class="btn btn-primary">🚀 Run CPU Test</button>
+                    <button id="runMemoryBenchmark" class="btn btn-success">💾 Run Memory Test</button>
+                    <button id="runFileIoBenchmark" class="btn btn-info">📁 Run File I/O Test</button>
+                </div>
+                <div id="benchmarkStatus" class="benchmark-status d-none">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2 loading" role="status"></div>
+                        <span id="benchmarkStatusText">Running benchmark...</span>
+                    </div>
+                </div>
+                <div id="benchmarkResults"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Benchmark Results</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.RecentBenchmarks.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Test Name</th>
+                                    <th>Architecture</th>
+                                    <th>Execution Time (ms)</th>
+                                    <th>Memory Used (MB)</th>
+                                    <th>Operations/sec</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var benchmark in Model.RecentBenchmarks)
+                                {
+                                    <tr>
+                                        <td>@benchmark.TestName</td>
+                                        <td>
+                                            <span class="badge bg-@(benchmark.Architecture.Contains("X64") ? "primary" : "success")">
+                                                @benchmark.Architecture
+                                            </span>
+                                        </td>
+                                        <td>@benchmark.ExecutionTimeMs.ToString("N2")</td>
+                                        <td>@((benchmark.MemoryUsedBytes / 1024 / 1024).ToString("N2"))</td>
+                                        <td>@benchmark.OperationsPerSecond.ToString("N0")</td>
+                                        <td>@benchmark.Timestamp.ToString("MM/dd HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No benchmark results available. Run some benchmarks to see results here.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // System info refresh
+        document.getElementById('refreshSystemInfo').addEventListener('click', function() {
+            refreshSystemInfo();
+        });
+
+        // Benchmark buttons
+        document.getElementById('runCpuBenchmark').addEventListener('click', function() {
+            runBenchmark('cpu');
+        });
+
+        document.getElementById('runMemoryBenchmark').addEventListener('click', function() {
+            runBenchmark('memory');
+        });
+
+        document.getElementById('runFileIoBenchmark').addEventListener('click', function() {
+            runBenchmark('fileio');
+        });
+
+        function refreshSystemInfo() {
+            fetch('/Home/RefreshSystemInfo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Refresh page to show updated system info
+                } else {
+                    alert('Error refreshing system info: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error refreshing system info');
+            });
+        }
+
+        function runBenchmark(type) {
+            showBenchmarkStatus(`Running ${type.toUpperCase()} benchmark...`);
+            
+            fetch('/Home/RunBenchmark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify({ type: type })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideBenchmarkStatus();
+                if (data.success) {
+                    displayBenchmarkResult(data.result);
+                } else {
+                    alert('Benchmark error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                hideBenchmarkStatus();
+                console.error('Error:', error);
+                alert('Error running benchmark');
+            });
+        }
+
+        function showBenchmarkStatus(message) {
+            document.getElementById('benchmarkStatusText').textContent = message;
+            document.getElementById('benchmarkStatus').classList.remove('d-none');
+        }
+
+        function hideBenchmarkStatus() {
+            document.getElementById('benchmarkStatus').classList.add('d-none');
+        }
+
+        function displayBenchmarkResult(result) {
+            const resultsDiv = document.getElementById('benchmarkResults');
+            const resultHtml = `
+                <div class="alert alert-success shadow-soft rounded-lg">
+                    <h6 class="text-gradient">${result.testName} Completed ✅</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Execution Time:</strong> ${result.executionTimeMs.toFixed(2)} ms</p>
+                            <p><strong>Memory Used:</strong> ${(result.memoryUsedBytes / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Operations/sec:</strong> ${result.operationsPerSecond.toLocaleString()}</p>
+                            <p><strong>Architecture:</strong> <span class="architecture-badge arch-${result.architecture.toLowerCase().includes('arm') ? 'arm64' : 'x64'}">${result.architecture}</span></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsDiv.innerHTML = resultHtml;
+            
+            // Auto-refresh the page after 3 seconds to show updated results in table
+            setTimeout(() => location.reload(), 3000);
+        }
+    </script>
+}

@@ -1,0 +1,214 @@
+@model IEnumerable<GravitonBridge.Core.Models.BenchmarkResult>
+@{
+    ViewData["Title"] = "Benchmarks";
+}
+
+<div class="text-center mb-5">
+    <h1 class="display-3 text-gradient mb-3">Performance Benchmarks</h1>
+    <p class="lead">View and manage all benchmark results</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form asp-action="RunAll" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-primary me-2">
+                🚀 Run All Benchmarks
+            </button>
+        </form>
+        <a asp-action="Compare" class="btn btn-info">
+            📊 Compare Results
+        </a>
+    </div>
+    <div class="col-md-6 text-end">
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+            <div class="stat-card">
+                <span class="stat-number">@Model.Count()</span>
+                <div class="stat-label">Total Results</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">@Model.Count(b => b.TestName.Contains("CPU"))</span>
+                <div class="stat-label">CPU Tests</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">@Model.Count(b => b.TestName.Contains("Memory"))</span>
+                <div class="stat-label">Memory Tests</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">@Model.Count(b => b.TestName.Contains("File"))</span>
+                <div class="stat-label">File I/O Tests</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        ✅ @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        ❌ @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>All Benchmark Results</h5>
+        @if (Model.Any())
+        {
+            <form asp-action="ClearAll" method="post" onsubmit="return confirm('Are you sure you want to clear all benchmark results?');">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    🗑️ Clear All
+                </button>
+            </form>
+        }
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Test Name</th>
+                            <th>Architecture</th>
+                            <th>Execution Time</th>
+                            <th>Memory Used</th>
+                            <th>Operations/sec</th>
+                            <th>Timestamp</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var benchmark in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>
+                                        @if (benchmark.TestName.Contains("CPU"))
+                                        {
+                                            <span>🚀 @benchmark.TestName</span>
+                                        }
+                                        else if (benchmark.TestName.Contains("Memory"))
+                                        {
+                                            <span>💾 @benchmark.TestName</span>
+                                        }
+                                        else if (benchmark.TestName.Contains("File"))
+                                        {
+                                            <span>📁 @benchmark.TestName</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@benchmark.TestName</span>
+                                        }
+                                    </strong>
+                                </td>
+                                <td>
+                                    <span class="architecture-badge arch-@(benchmark.Architecture.ToLower().Contains("arm") ? "arm64" : "x64")">
+                                        @benchmark.Architecture
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">@benchmark.ExecutionTimeMs.ToString("N2") ms</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning">@((benchmark.MemoryUsedBytes / 1024 / 1024).ToString("N2")) MB</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">@benchmark.OperationsPerSecond.ToString("N0")</span>
+                                </td>
+                                <td>@benchmark.Timestamp.ToString("MM/dd/yyyy HH:mm:ss")</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a asp-action="Details" asp-route-id="@benchmark.Id" class="btn btn-sm btn-info">👁️ View</a>
+                                        <form asp-action="Delete" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this result?');">
+                                            <input type="hidden" name="id" value="@benchmark.Id" />
+                                            <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <h4 class="text-muted">No benchmark results found</h4>
+                <p class="text-muted">Run some benchmarks to see results here.</p>
+                <form asp-action="RunAll" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-primary">
+                        🚀 Run All Benchmarks
+                    </button>
+                </form>
+            </div>
+        }
+    </div>
+</div>
+
+@if (Model.Any())
+{
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6>Average Performance</h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <div class="info-label">Avg Execution Time:</div>
+                        <div class="info-value">@Model.Average(b => b.ExecutionTimeMs).ToString("N2") ms</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Avg Memory Usage:</div>
+                        <div class="info-value">@((Model.Average(b => b.MemoryUsedBytes) / 1024 / 1024).ToString("N2")) MB</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6>Best Performance</h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <div class="info-label">Fastest Test:</div>
+                        <div class="info-value">@Model.OrderBy(b => b.ExecutionTimeMs).First().TestName</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Highest Ops/sec:</div>
+                        <div class="info-value">@Model.OrderByDescending(b => b.OperationsPerSecond).First().OperationsPerSecond.ToString("N0")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6>Architecture Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-item">
+                        <div class="info-label">ARM64 Results:</div>
+                        <div class="info-value">@Model.Count(b => b.Architecture.Contains("Arm"))</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">x86/x64 Results:</div>
+                        <div class="info-value">@Model.Count(b => !b.Architecture.Contains("Arm"))</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,67 @@
+@model GravitonBridge.Core.Models.Task
+@{
+    ViewData["Title"] = "Create Task";
+}
+
+<div class="text-center mb-5">
+    <h1 class="display-3 text-gradient mb-3">Create New Task</h1>
+    <p class="lead">Define a new compatibility testing task</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Task Details</h5>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label">Task Name</label>
+                        <input asp-for="Name" class="form-control" placeholder="Enter task name..." />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">Description</label>
+                        <textarea asp-for="Description" class="form-control" rows="4" placeholder="Describe what this task will test..."></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Priority" class="form-label">Priority</label>
+                        <select asp-for="Priority" class="form-select">
+                            <option value="@((int)GravitonBridge.Core.Models.TaskPriority.Low)">🟢 Low</option>
+                            <option value="@((int)GravitonBridge.Core.Models.TaskPriority.Medium)" selected>🟡 Medium</option>
+                            <option value="@((int)GravitonBridge.Core.Models.TaskPriority.High)">🟠 High</option>
+                            <option value="@((int)GravitonBridge.Core.Models.TaskPriority.Critical)">🔴 Critical</option>
+                        </select>
+                        <span asp-validation-for="Priority" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="ExpectedDurationMinutes" class="form-label">Expected Duration (Minutes)</label>
+                        <input asp-for="ExpectedDurationMinutes" type="number" class="form-control" min="1" max="1440" placeholder="30" />
+                        <span asp-validation-for="ExpectedDurationMinutes" class="text-danger"></span>
+                        <div class="form-text">Estimated time this task will take to complete</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Index" class="btn btn-secondary">
+                            ← Back to Tasks
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            ✅ Create Task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

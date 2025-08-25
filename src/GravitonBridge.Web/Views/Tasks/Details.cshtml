@@ -1,0 +1,170 @@
+@model GravitonBridge.Core.Models.Task
+@{
+    ViewData["Title"] = "Task Details";
+}
+
+<div class="text-center mb-5">
+    <h1 class="display-3 text-gradient mb-3">Task Details</h1>
+    <p class="lead">@Model.Name</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Task Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <div class="info-label">Name:</div>
+                            <div class="info-value">@Model.Name</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <div class="info-label">Status:</div>
+                            <div class="info-value">
+                                @switch (Model.Status)
+                                {
+                                    case GravitonBridge.Core.Models.TaskStatus.Pending:
+                                        <span class="badge bg-warning">⏳ Pending</span>
+                                        break;
+                                    case GravitonBridge.Core.Models.TaskStatus.Running:
+                                        <span class="badge bg-info">🔄 Running</span>
+                                        break;
+                                    case GravitonBridge.Core.Models.TaskStatus.Completed:
+                                        <span class="badge bg-success">✅ Completed</span>
+                                        break;
+                                    case GravitonBridge.Core.Models.TaskStatus.Failed:
+                                        <span class="badge bg-danger">❌ Failed</span>
+                                        break;
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <div class="info-label">Priority:</div>
+                            <div class="info-value">
+                                @switch (Model.Priority)
+                                {
+                                    case GravitonBridge.Core.Models.TaskPriority.Low:
+                                        <span class="badge bg-success">🟢 Low</span>
+                                        break;
+                                    case GravitonBridge.Core.Models.TaskPriority.Medium:
+                                        <span class="badge bg-warning">🟡 Medium</span>
+                                        break;
+                                    case GravitonBridge.Core.Models.TaskPriority.High:
+                                        <span class="badge bg-orange">🟠 High</span>
+                                        break;
+                                    case GravitonBridge.Core.Models.TaskPriority.Critical:
+                                        <span class="badge bg-danger">🔴 Critical</span>
+                                        break;
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <div class="info-label">Expected Duration:</div>
+                            <div class="info-value">@Model.ExpectedDurationMinutes minutes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="info-item">
+                            <div class="info-label">Description:</div>
+                            <div class="info-value">@Model.Description</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Timeline</h5>
+            </div>
+            <div class="card-body">
+                <div class="info-item">
+                    <div class="info-label">Created:</div>
+                    <div class="info-value">@Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")</div>
+                </div>
+
+                @if (Model.UpdatedAt.HasValue)
+                {
+                    <div class="info-item mt-3">
+                        <div class="info-label">Last Updated:</div>
+                        <div class="info-value">@Model.UpdatedAt.Value.ToString("MMM dd, yyyy HH:mm")</div>
+                    </div>
+                }
+
+                @if (Model.CompletedAt.HasValue)
+                {
+                    <div class="info-item mt-3">
+                        <div class="info-label">Completed:</div>
+                        <div class="info-value">@Model.CompletedAt.Value.ToString("MMM dd, yyyy HH:mm")</div>
+                    </div>
+                }
+
+                @if (Model.Status == GravitonBridge.Core.Models.TaskStatus.Completed && Model.CompletedAt.HasValue)
+                {
+                    var duration = Model.CompletedAt.Value - Model.CreatedAt;
+                    <div class="info-item mt-3">
+                        <div class="info-label">Actual Duration:</div>
+                        <div class="info-value">@duration.TotalMinutes.ToString("F1") minutes</div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Actions</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Status == GravitonBridge.Core.Models.TaskStatus.Pending)
+                {
+                    <form asp-controller="Tasks" asp-action="UpdateStatus" method="post" class="mb-2">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="status" value="@((int)GravitonBridge.Core.Models.TaskStatus.Running)" />
+                        <button type="submit" class="btn btn-success w-100">▶️ Start Task</button>
+                    </form>
+                }
+
+                @if (Model.Status == GravitonBridge.Core.Models.TaskStatus.Running)
+                {
+                    <form asp-controller="Tasks" asp-action="UpdateStatus" method="post" class="mb-2">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="status" value="@((int)GravitonBridge.Core.Models.TaskStatus.Completed)" />
+                        <button type="submit" class="btn btn-primary w-100">✅ Mark Complete</button>
+                    </form>
+
+                    <form asp-controller="Tasks" asp-action="UpdateStatus" method="post" class="mb-2">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="status" value="@((int)GravitonBridge.Core.Models.TaskStatus.Failed)" />
+                        <button type="submit" class="btn btn-warning w-100">❌ Mark Failed</button>
+                    </form>
+                }
+
+                <form asp-controller="Tasks" asp-action="Delete" method="post" onsubmit="return confirm('Are you sure you want to delete this task?');">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-danger w-100">🗑️ Delete Task</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a asp-action="Index" class="btn btn-secondary">← Back to Tasks</a>
+</div>
