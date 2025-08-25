@@ -71,7 +71,7 @@ install_dotnet() {
             sudo apt-get install -y dotnet-sdk-8.0 || sudo apt-get install -y dotnet-sdk-7.0 || sudo apt-get install -y dotnet-sdk-6.0
             ;;
             
-        "centos"|"rhel"|"fedora"|"amzn")
+        "centos"|"rhel"|"fedora")
             print_status "Installing .NET SDK for CentOS/RHEL/Amazon Linux..."
             
             # Add Microsoft package repository
@@ -126,13 +126,13 @@ install_dependencies() {
     case $DISTRO in
         "ubuntu"|"debian")
             sudo apt-get update
-            sudo apt-get install -y curl wget unzip
+            sudo apt-get install -y curl wget unzip libicu --skip-broken
             ;;
         "centos"|"rhel"|"fedora"|"amzn")
             if command -v dnf &> /dev/null; then
-                sudo dnf install -y curl wget unzip
+                sudo dnf install -y curl wget unzip libicu --skip-broken
             else
-                sudo yum install -y curl wget unzip
+                sudo yum install -y curl wget unzip libicu --skip-broken
             fi
             ;;
     esac
