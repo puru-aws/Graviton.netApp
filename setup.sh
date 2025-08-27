@@ -154,7 +154,7 @@ build_application() {
     
     # Build the solution
     print_status "Building the solution..."
-    dotnet build --configuration Release
+    dotnet build --configuration Release --urls "http://localhost:5000;http://0.0.0.0:5000"
     
     print_success "Application built successfully!"
 }
