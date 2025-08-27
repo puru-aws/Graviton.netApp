@@ -92,12 +92,12 @@ start_application() {
     
     # Set environment variables
     export ASPNETCORE_ENVIRONMENT=Development
-    export ASPNETCORE_URLS="http://localhost:5000;https://localhost:5001"
+    export ASPNETCORE_URLS="http://localhost:5000;http://0.0.0.0:5000;https://localhost:5001"
     
     # Display startup information
     echo ""
     print_success "Application starting..."
-    print_status "HTTP URL: http://localhost:5000"
+    print_status "HTTP URL: http://localhost:5000;http://0.0.0.0:5000"
     print_status "HTTPS URL: https://localhost:5001"
     if command -v hostname &> /dev/null && hostname -I &> /dev/null; then
         print_status "Network URL: http://$(hostname -I | awk '{print $1}'):5000"

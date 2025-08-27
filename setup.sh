@@ -95,7 +95,7 @@ install_dotnet() {
             # Try to install using the Microsoft installation script
             wget -q https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
             chmod +x dotnet-install.sh
-            ./dotnet-install.sh --channel 8.0 || ./dotnet-install.sh --channel 7.0 || ./dotnet-install.sh --channel 6.0
+            ./dotnet-install.sh --channel 10.0 || ./dotnet-install.sh --channel 8.0 || ./dotnet-install.sh --channel 6.0
             
             # Add to PATH
             export PATH="$PATH:$HOME/.dotnet"
@@ -215,10 +215,10 @@ fi
 
 # Set environment variables
 export ASPNETCORE_ENVIRONMENT=Development
-export ASPNETCORE_URLS="http://localhost:5000"
+export ASPNETCORE_URLS="http://localhost:5000;http://0.0.0.0:5000"
 
 print_success "Application starting..."
-print_status "Once started, open your browser to: http://localhost:5000"
+print_status "Once started, open your browser to: http://localhost:5000;http://0.0.0.0:5000"
 print_status "Press Ctrl+C to stop the application"
 echo ""
 
@@ -252,7 +252,7 @@ RestartSec=10
 KillSignal=SIGINT
 SyslogIdentifier=compatibility-test
 Environment=ASPNETCORE_ENVIRONMENT=Production
-Environment=ASPNETCORE_URLS=http://localhost:5000
+Environment=ASPNETCORE_URLS=http://localhost:5000;http://0.0.0.0:5000
 
 [Install]
 WantedBy=multi-user.target
@@ -272,7 +272,7 @@ show_final_instructions() {
     echo ""
     print_status "Next steps:"
     echo "  1. Run the application: ./run.sh"
-    echo "  2. Open your browser to: http://localhost:5000"
+    echo "  2. Open your browser to: http://localhost:5000;http://0.0.0.0:5000"
     echo "  3. Use the dashboard to run compatibility tests"
     echo ""
     print_status "For production deployment:"
