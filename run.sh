@@ -110,7 +110,7 @@ start_application() {
     echo ""
     
     # Run the application
-    dotnet run --configuration Release
+    dotnet run --configuration Release --urls "http://localhost:5000;http://0.0.0.0:5000"
 }
 
 # Function to show usage
