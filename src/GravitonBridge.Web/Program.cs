@@ -26,10 +26,22 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+    // Commented out HSTS for HTTP-only deployment
+    // app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// Commented out HTTPS redirection for HTTP-only deployment
+// app.UseHttpsRedirection();
+
+// Add security headers for production
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Add("X-Frame-Options", "DENY");
+    context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+    await next();
+});
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();

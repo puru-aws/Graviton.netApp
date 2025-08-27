@@ -90,9 +90,10 @@ start_application() {
     # Navigate to web project directory
     cd src/GravitonBridge.Web
     
-    # Set environment variables
-    export ASPNETCORE_ENVIRONMENT=Development
+    # Set environment variables for internet deployment
+    export ASPNETCORE_ENVIRONMENT=Production
     export ASPNETCORE_URLS="http://0.0.0.0:5000"
+    export ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
     
     # Display startup information
     echo ""
