@@ -92,7 +92,7 @@ start_application() {
     
     # Set environment variables
     export ASPNETCORE_ENVIRONMENT=Development
-    export ASPNETCORE_URLS="http://localhost:5000;http://0.0.0.0:5000;https://localhost:5001"
+    export ASPNETCORE_URLS="http://0.0.0.0:5000"
     
     # Display startup information
     echo ""
@@ -110,7 +110,7 @@ start_application() {
     echo ""
     
     # Run the application
-    dotnet run --configuration Release --urls "http://localhost:5000;http://0.0.0.0:5000"
+    dotnet run --configuration Release --urls "http://0.0.0.0:5000"
 }
 
 # Function to show usage
