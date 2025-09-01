@@ -31,7 +31,19 @@ print_status "=== CodeDeploy ValidateService Hook ==="
 
 # Wait for application to fully start
 print_status "Waiting for application to start..."
-sleep 10
+sleep 15
+
+# Check if the application process is actually running
+print_status "Checking for dotnet processes..."
+if pgrep -f "dotnet.*GravitonBridge" >/dev/null; then
+    print_success "Dotnet application process is running"
+    print_status "Process details:"
+    ps aux | grep -E "dotnet.*GravitonBridge|PID" | head -5
+else
+    print_warning "No dotnet GravitonBridge process found"
+    print_status "All dotnet processes:"
+    ps aux | grep dotnet || print_status "No dotnet processes found"
+fi
 
 # Check if systemd service is running
 print_status "Checking systemd service status..."
@@ -46,26 +58,60 @@ else
     exit 1
 fi
 
+# Enhanced diagnostics before port check
+print_status "Enhanced diagnostics..."
+print_status "Service detailed status:"
+systemctl status graviton-bridge --no-pager -l || true
+print_status "Recent application logs:"
+journalctl -u graviton-bridge --no-pager -l --since "3 minutes ago" || true
+
 # Check if port 5000 is listening
 print_status "Checking if port 5000 is listening..."
-if command -v netstat &> /dev/null; then
-    if netstat -tlnp | grep -q ":5000 "; then
-        print_success "Port 5000 is listening"
+PORT_LISTENING=false
+
+if command -v ss &> /dev/null; then
+    print_status "Using ss to check port 5000..."
+    if sudo ss -tlnp | grep -q ":5000 "; then
+        print_success "Port 5000 is listening (ss)"
+        PORT_LISTENING=true
+        sudo ss -tlnp | grep ":5000" || true
     else
-        print_error "Port 5000 is not listening"
-        netstat -tlnp | grep ":5000" || true
-        exit 1
+        print_status "Port 5000 not found with ss, checking all listening ports:"
+        sudo ss -tlnp | head -10 || true
     fi
-elif command -v ss &> /dev/null; then
-    if ss -tlnp | grep -q ":5000 "; then
-        print_success "Port 5000 is listening"
+elif command -v netstat &> /dev/null; then
+    print_status "Using netstat to check port 5000..."
+    if sudo netstat -tlnp | grep -q ":5000 "; then
+        print_success "Port 5000 is listening (netstat)"
+        PORT_LISTENING=true
+        sudo netstat -tlnp | grep ":5000" || true
     else
-        print_error "Port 5000 is not listening"
-        ss -tlnp | grep ":5000" || true
-        exit 1
+        print_status "Port 5000 not found with netstat, checking all listening ports:"
+        sudo netstat -tlnp | head -10 || true
     fi
 else
-    print_warning "Neither netstat nor ss available, skipping port check"
+    print_warning "Neither netstat nor ss available, trying lsof..."
+    if command -v lsof &> /dev/null; then
+        if sudo lsof -i :5000 >/dev/null 2>&1; then
+            print_success "Port 5000 is listening (lsof)"
+            PORT_LISTENING=true
+            sudo lsof -i :5000 || true
+        else
+            print_status "Port 5000 not found with lsof"
+        fi
+    fi
+fi
+
+if [ "$PORT_LISTENING" = false ]; then
+    print_error "Port 5000 is not listening"
+    print_status "Checking what ports are being used by dotnet processes..."
+    sudo lsof -i -P -n | grep dotnet || print_status "No dotnet processes found with open ports"
+    print_status "Checking application configuration..."
+    print_status "Environment variables in service:"
+    sudo systemctl show graviton-bridge --property=Environment || true
+    print_status "Application logs (last 50 lines):"
+    journalctl -u graviton-bridge --no-pager -l -n 50 || true
+    exit 1
 fi
 
 # Test HTTP endpoint

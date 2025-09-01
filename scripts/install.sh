@@ -330,6 +330,16 @@ main() {
     # Build application
     build_application
     
+    # Verify the build output
+    print_status "Verifying build output..."
+    if [ -f "/opt/graviton-bridge/src/GravitonBridge.Web/bin/Release/net10.0/GravitonBridge.Web.dll" ]; then
+        print_success "Application DLL found"
+    else
+        print_error "Application DLL not found after build"
+        find /opt/graviton-bridge -name "*.dll" -type f | head -5
+        exit 1
+    fi
+    
     # Create systemd service
     create_systemd_service
     
