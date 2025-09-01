@@ -6,6 +6,6 @@ hooks:
       timeout: 300
       runas: root
   ApplicationStart:
-    - location: setup.sh
+    - location: ./setup.sh
       timeout: 300
       runas: root
