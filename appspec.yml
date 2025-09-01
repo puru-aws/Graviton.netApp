@@ -1,9 +1,9 @@
 version: 0.0
 os: linux
 hooks:
-  BeforeInstall:
-    - location: scripts/beforeinstall.sh
-      timeout: 180
+  #BeforeInstall:
+  #  - location: scripts/beforeinstall.sh
+  #    timeout: 180
   ApplicationStart:
     - location: scripts/setup.sh
       timeout: 180
