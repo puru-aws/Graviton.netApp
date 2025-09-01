@@ -1,11 +1,11 @@
 version: 0.0
 os: linux
 hooks:
-  #BeforeInstall:
-  #  - command: chmod +x setup.sh
-  #    timeout: 180
-  #    runas: root
+  BeforeInstall:
+    - location: scripts/beforeinstall.sh
+      timeout: 180
+      runas: root
   ApplicationStart:
-    - location: setup.sh
+    - location: scripts/setup.sh
       timeout: 180
       runas: root
