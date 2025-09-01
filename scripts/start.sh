@@ -39,12 +39,31 @@ elif command -v firewall-cmd &> /dev/null; then
     sudo firewall-cmd --reload 2>/dev/null || true
 fi
 
+# Pre-start diagnostics
+print_status "Pre-start diagnostics..."
+print_status "Dotnet version: $(dotnet --version 2>/dev/null || echo 'not found')"
+print_status "Dotnet path: $(which dotnet 2>/dev/null || echo 'not found')"
+print_status "Working directory: $(pwd)"
+print_status "Application files:"
+ls -la src/GravitonBridge.Web/ | head -5
+
+# Verify the systemd service file
+print_status "Checking systemd service configuration..."
+if [ -f "/etc/systemd/system/graviton-bridge.service" ]; then
+    print_status "Service file exists"
+    print_status "ExecStart line:"
+    grep "ExecStart=" /etc/systemd/system/graviton-bridge.service || true
+else
+    print_error "Service file not found!"
+    exit 1
+fi
+
 # Start the application using systemd
 print_status "Starting graviton-bridge service..."
 sudo systemctl start graviton-bridge
 
 # Wait a moment for the service to start
-sleep 5
+sleep 8
 
 # Check if service is running
 if systemctl is-active --quiet graviton-bridge; then
@@ -53,8 +72,12 @@ if systemctl is-active --quiet graviton-bridge; then
     systemctl status graviton-bridge --no-pager -l
 else
     print_error "Failed to start graviton-bridge service"
+    print_status "Detailed service status:"
+    systemctl status graviton-bridge --no-pager -l || true
     print_status "Service logs:"
-    journalctl -u graviton-bridge --no-pager -l --since "1 minute ago"
+    journalctl -u graviton-bridge --no-pager -l --since "2 minutes ago" || true
+    print_status "Systemd service file content:"
+    cat /etc/systemd/system/graviton-bridge.service || true
     exit 1
 fi
 

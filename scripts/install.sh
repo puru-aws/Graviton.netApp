@@ -100,7 +100,15 @@ install_dotnet() {
                 echo 'export PATH="$PATH:$HOME/.dotnet"' >> ~/.bashrc
                 
                 # Create symlink for system-wide access
+                print_status "Creating system-wide dotnet symlink..."
                 sudo ln -sf $HOME/.dotnet/dotnet /usr/local/bin/dotnet
+                
+                # Verify the symlink works
+                if /usr/local/bin/dotnet --version >/dev/null 2>&1; then
+                    print_success "Dotnet symlink created successfully"
+                else
+                    print_warning "Symlink creation may have failed, will use direct path in systemd"
+                fi
                 
                 rm dotnet-install.sh
             else
@@ -214,16 +222,33 @@ build_application() {
 create_systemd_service() {
     print_status "Creating systemd service..."
     
+    # Find the actual dotnet path
+    DOTNET_PATH=$(which dotnet)
+    if [ -z "$DOTNET_PATH" ]; then
+        # If not in PATH, check common locations
+        if [ -f "/usr/local/bin/dotnet" ]; then
+            DOTNET_PATH="/usr/local/bin/dotnet"
+        elif [ -f "/home/ec2-user/.dotnet/dotnet" ]; then
+            DOTNET_PATH="/home/ec2-user/.dotnet/dotnet"
+        else
+            print_error "Could not find dotnet executable"
+            exit 1
+        fi
+    fi
+    
+    print_status "Using dotnet path: $DOTNET_PATH"
+    
     sudo tee /etc/systemd/system/graviton-bridge.service > /dev/null << EOF
 [Unit]
 Description=.NET Graviton Compatibility Test Application
 After=network.target
 
 [Service]
-Type=notify
+Type=simple
 User=ec2-user
+Group=ec2-user
 WorkingDirectory=/opt/graviton-bridge/src/GravitonBridge.Web
-ExecStart=/usr/bin/dotnet run --configuration Release
+ExecStart=$DOTNET_PATH run --configuration Release
 Restart=always
 RestartSec=10
 KillSignal=SIGINT
@@ -231,6 +256,7 @@ SyslogIdentifier=graviton-bridge
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
 Environment=ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ec2-user/.dotnet
 
 [Install]
 WantedBy=multi-user.target
@@ -240,7 +266,7 @@ EOF
     sudo systemctl daemon-reload
     sudo systemctl enable graviton-bridge
     
-    print_success "Systemd service created and enabled"
+    print_success "Systemd service created and enabled with dotnet path: $DOTNET_PATH"
 }
 
 # Function to fix permissions
@@ -286,6 +312,18 @@ main() {
     # Verify installation
     if ! verify_dotnet; then
         print_error "Installation failed. Please check the error messages above."
+        exit 1
+    fi
+    
+    # Additional verification - test dotnet in the application directory
+    print_status "Testing dotnet in application directory..."
+    cd /opt/graviton-bridge
+    if dotnet --info >/dev/null 2>&1; then
+        print_success "Dotnet is working in application directory"
+    else
+        print_error "Dotnet is not working in application directory"
+        print_status "PATH: $PATH"
+        print_status "Which dotnet: $(which dotnet || echo 'not found')"
         exit 1
     fi
     
