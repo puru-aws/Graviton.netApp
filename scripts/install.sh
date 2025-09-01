@@ -191,13 +191,21 @@ build_application() {
         exit 1
     fi
     
+    # Clean any existing build artifacts
+    print_status "Cleaning previous build artifacts..."
+    dotnet clean || true
+    
+    # Remove obj and bin directories to ensure clean build
+    find . -name "obj" -type d -exec rm -rf {} + 2>/dev/null || true
+    find . -name "bin" -type d -exec rm -rf {} + 2>/dev/null || true
+    
     # Restore NuGet packages
     print_status "Restoring NuGet packages..."
-    dotnet restore
+    dotnet restore --verbosity minimal
     
     # Build the solution
     print_status "Building the solution..."
-    dotnet build --configuration Release
+    dotnet build --configuration Release --verbosity minimal
     
     print_success "Application built successfully!"
 }
@@ -235,9 +243,31 @@ EOF
     print_success "Systemd service created and enabled"
 }
 
+# Function to fix permissions
+fix_permissions() {
+    print_status "Fixing file permissions..."
+    
+    # Ensure ec2-user owns all files in the deployment directory
+    sudo chown -R ec2-user:ec2-user /opt/graviton-bridge
+    
+    # Set proper permissions for directories
+    sudo find /opt/graviton-bridge -type d -exec chmod 755 {} \;
+    
+    # Set proper permissions for files
+    sudo find /opt/graviton-bridge -type f -exec chmod 644 {} \;
+    
+    # Make shell scripts executable
+    sudo find /opt/graviton-bridge/scripts -name "*.sh" -exec chmod 755 {} \;
+    
+    print_success "Permissions fixed successfully"
+}
+
 # Main execution
 main() {
     print_status "Starting installation process..."
+    
+    # Fix permissions first
+    fix_permissions
     
     # Detect distribution
     detect_distro

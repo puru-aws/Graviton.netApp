@@ -42,7 +42,8 @@ fi
 # Create application directory
 print_status "Creating application directory..."
 mkdir -p /opt/graviton-bridge
-chown ec2-user:ec2-user /opt/graviton-bridge
+chown -R ec2-user:ec2-user /opt/graviton-bridge
+chmod 755 /opt/graviton-bridge
 
 # Clean up old deployment if exists
 if [ -d "/opt/graviton-bridge/src" ]; then
