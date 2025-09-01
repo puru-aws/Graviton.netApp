@@ -6,10 +6,8 @@ files:
     overwrite: yes
 permissions:
   - object: /opt/graviton-bridge
-    pattern: "**"
     owner: ec2-user
     group: ec2-user
-    mode: 755
   - object: /opt/graviton-bridge/scripts
     pattern: "*.sh"
     owner: ec2-user
