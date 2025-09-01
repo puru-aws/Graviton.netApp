@@ -1,11 +1,7 @@
 version: 0.0
 os: linux
 hooks:
-  BeforeInstall:
-    - command: ls -al
-      timeout: 300
-      runas: root
   ApplicationStart:
     - location: ./setup.sh
-      timeout: 300
+      timeout: 180
       runas: root
