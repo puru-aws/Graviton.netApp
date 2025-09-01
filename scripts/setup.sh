@@ -94,11 +94,13 @@ install_dotnet() {
             print_warning "Unsupported distribution. Attempting generic installation..."
             # Try to install using the Microsoft installation script
             wget -q https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
-            ls
+            
+            export HOME=`pwd`
             chmod +x dotnet-install.sh
             ./dotnet-install.sh --channel 10.0 || ./dotnet-install.sh --channel 7.0 || ./dotnet-install.sh --channel 6.0
             
             # Add to PATH
+
             export "PATH=$PATH:`pwd`/.dotnet"
             echo 'export PATH="$PATH:$HOME/.dotnet"' >> ~/.bashrc
             rm dotnet-install.sh
