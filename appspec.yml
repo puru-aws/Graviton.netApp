@@ -7,3 +7,4 @@ hooks:
   ApplicationStart:
     - location: scripts/setup.sh
       timeout: 180
+      runas: ssm-user
