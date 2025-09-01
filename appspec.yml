@@ -4,8 +4,6 @@ hooks:
   BeforeInstall:
     - location: scripts/beforeinstall.sh
       timeout: 180
-      runas: root
   ApplicationStart:
     - location: scripts/setup.sh
       timeout: 180
-      runas: root
