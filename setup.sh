@@ -289,6 +289,8 @@ show_final_instructions() {
 main() {
     echo ""
     print_status "=== .NET Graviton Compatibility Test Application Setup ==="
+    echo `pwd`
+    echo `ls -al`
     echo ""
     
     # Check if running as root
