@@ -76,9 +76,22 @@ install_dotnet() {
             
             # For Amazon Linux, try different approaches based on version
             if [ "$DISTRO" = "amzn" ]; then
-                print_status "Detected Amazon Linux - using Microsoft installation script for .NET 10.0"
+                print_status "Detected Amazon Linux - trying multiple installation methods"
                 
-                # Use the Microsoft installation script for Amazon Linux to get .NET 10.0
+                # First try package manager for better compatibility
+                print_status "Attempting package manager installation first..."
+                if sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm 2>/dev/null; then
+                    if sudo yum install -y dotnet-sdk-8.0 2>/dev/null; then
+                        print_success "Successfully installed .NET 8.0 via package manager"
+                        return 0
+                    elif sudo yum install -y dotnet-sdk-6.0 2>/dev/null; then
+                        print_success "Successfully installed .NET 6.0 via package manager"
+                        return 0
+                    fi
+                fi
+                
+                print_status "Package manager failed, trying Microsoft installation script..."
+                # Use the Microsoft installation script for Amazon Linux
                 wget -q https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
                 chmod +x dotnet-install.sh
                 
@@ -96,18 +109,66 @@ install_dotnet() {
                 fi
                 
                 # Add to PATH for current session and future sessions
-                export PATH="$PATH:$HOME/.dotnet"
-                echo 'export PATH="$PATH:$HOME/.dotnet"' >> ~/.bashrc
+                export PATH="$HOME/.dotnet:$PATH"
+                echo 'export PATH="$HOME/.dotnet:$PATH"' >> ~/.bashrc
                 
-                # Create symlink for system-wide access
-                print_status "Creating system-wide dotnet symlink..."
-                sudo ln -sf $HOME/.dotnet/dotnet /usr/local/bin/dotnet
-                
-                # Verify the symlink works
-                if /usr/local/bin/dotnet --version >/dev/null 2>&1; then
-                    print_success "Dotnet symlink created successfully"
+                # Test the installation before creating symlink
+                print_status "Testing .NET installation..."
+                if $HOME/.dotnet/dotnet --version >/dev/null 2>&1; then
+                    print_success ".NET installation is working"
+                    
+                    # Create symlink for system-wide access
+                    print_status "Creating system-wide dotnet symlink..."
+                    sudo ln -sf $HOME/.dotnet/dotnet /usr/local/bin/dotnet
+                    
+                    # Verify the symlink works
+                    if /usr/local/bin/dotnet --version >/dev/null 2>&1; then
+                        print_success "Dotnet symlink created successfully"
+                    else
+                        print_warning "Symlink failed, removing it and using direct path"
+                        sudo rm -f /usr/local/bin/dotnet
+                    fi
                 else
-                    print_warning "Symlink creation may have failed, will use direct path in systemd"
+                    print_error ".NET installation is not working properly"
+                    print_status "Attempting to diagnose the issue..."
+                    
+                    # Check if the dotnet binary exists and is executable
+                    if [ -f "$HOME/.dotnet/dotnet" ]; then
+                        print_status "Dotnet binary exists, checking permissions..."
+                        ls -la $HOME/.dotnet/dotnet
+                        
+                        # Check if it's the right architecture
+                        print_status "Checking binary architecture..."
+                        file $HOME/.dotnet/dotnet || true
+                        
+                        # Try to get more detailed error
+                        print_status "Attempting to run dotnet with error output..."
+                        $HOME/.dotnet/dotnet --version 2>&1 || true
+                    else
+                        print_error "Dotnet binary not found at $HOME/.dotnet/dotnet"
+                    fi
+                    
+                    # Try alternative installation method
+                    print_status "Trying alternative installation method..."
+                    rm -rf $HOME/.dotnet
+                    
+                    # Try installing .NET 8.0 instead of 10.0 for better compatibility
+                    if ./dotnet-install.sh --channel 8.0; then
+                        print_success "Successfully installed .NET 8.0 as fallback"
+                        export PATH="$HOME/.dotnet:$PATH"
+                        
+                        # Test again
+                        if $HOME/.dotnet/dotnet --version >/dev/null 2>&1; then
+                            print_success ".NET 8.0 installation is working"
+                            sudo ln -sf $HOME/.dotnet/dotnet /usr/local/bin/dotnet
+                        else
+                            print_error "Even .NET 8.0 installation failed"
+                            exit 1
+                        fi
+                    else
+                        print_error "Alternative installation also failed"
+                        exit 1
+                    fi
                 fi
                 
                 rm dotnet-install.sh
@@ -159,14 +220,46 @@ install_dotnet() {
 verify_dotnet() {
     print_status "Verifying .NET installation..."
     
-    if command -v dotnet &> /dev/null; then
-        DOTNET_VERSION=$(dotnet --version)
-        print_success ".NET SDK installed successfully. Version: $DOTNET_VERSION"
-        return 0
-    else
-        print_error ".NET SDK installation failed or not found in PATH"
-        return 1
-    fi
+    # Try multiple ways to find and test dotnet
+    DOTNET_PATHS=(
+        "$(which dotnet 2>/dev/null || echo '')"
+        "/usr/local/bin/dotnet"
+        "$HOME/.dotnet/dotnet"
+        "/usr/bin/dotnet"
+    )
+    
+    for dotnet_path in "${DOTNET_PATHS[@]}"; do
+        if [ -n "$dotnet_path" ] && [ -f "$dotnet_path" ]; then
+            print_status "Testing dotnet at: $dotnet_path"
+            
+            # Test if it can run without crashing
+            if timeout 10 "$dotnet_path" --version >/dev/null 2>&1; then
+                DOTNET_VERSION=$("$dotnet_path" --version 2>/dev/null || echo "unknown")
+                print_success ".NET SDK verified successfully. Version: $DOTNET_VERSION"
+                print_status "Working dotnet path: $dotnet_path"
+                
+                # Ensure this path is in the system PATH
+                if [ "$dotnet_path" != "$(which dotnet 2>/dev/null)" ]; then
+                    print_status "Adding $dotnet_path to PATH"
+                    export PATH="$(dirname "$dotnet_path"):$PATH"
+                fi
+                
+                return 0
+            else
+                print_warning "Dotnet at $dotnet_path failed to run properly"
+                
+                # Show more details about the failure
+                print_status "Detailed error for $dotnet_path:"
+                timeout 5 "$dotnet_path" --version 2>&1 || print_status "Command timed out or crashed"
+            fi
+        fi
+    done
+    
+    print_error ".NET SDK installation failed - no working dotnet found"
+    print_status "Available dotnet files:"
+    find /usr -name "dotnet" -type f 2>/dev/null || true
+    find $HOME -name "dotnet" -type f 2>/dev/null || true
+    return 1
 }
 
 # Function to install additional dependencies
@@ -318,12 +411,42 @@ main() {
     # Additional verification - test dotnet in the application directory
     print_status "Testing dotnet in application directory..."
     cd /opt/graviton-bridge
-    if dotnet --info >/dev/null 2>&1; then
-        print_success "Dotnet is working in application directory"
+    
+    # Find the working dotnet path
+    WORKING_DOTNET=""
+    for dotnet_path in "$(which dotnet 2>/dev/null || echo '')" "/usr/local/bin/dotnet" "$HOME/.dotnet/dotnet"; do
+        if [ -n "$dotnet_path" ] && [ -f "$dotnet_path" ]; then
+            if timeout 10 "$dotnet_path" --info >/dev/null 2>&1; then
+                WORKING_DOTNET="$dotnet_path"
+                break
+            fi
+        fi
+    done
+    
+    if [ -n "$WORKING_DOTNET" ]; then
+        print_success "Dotnet is working in application directory using: $WORKING_DOTNET"
+        
+        # Test basic dotnet commands
+        print_status "Testing basic dotnet functionality..."
+        if timeout 15 "$WORKING_DOTNET" --list-sdks >/dev/null 2>&1; then
+            print_success "Dotnet SDK list command works"
+        else
+            print_warning "Dotnet SDK list command failed, but basic dotnet works"
+        fi
     else
         print_error "Dotnet is not working in application directory"
         print_status "PATH: $PATH"
         print_status "Which dotnet: $(which dotnet || echo 'not found')"
+        print_status "Available dotnet files:"
+        find /usr -name "dotnet" -type f 2>/dev/null | head -5 || true
+        find $HOME -name "dotnet" -type f 2>/dev/null | head -5 || true
+        
+        # Try to diagnose the core dump issue
+        print_status "Checking system compatibility..."
+        uname -a
+        print_status "Checking available libraries..."
+        ldd /usr/local/bin/dotnet 2>/dev/null | head -10 || true
+        
         exit 1
     fi
     
