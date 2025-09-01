@@ -114,6 +114,12 @@ install_dotnet() {
                 
                 # Test the installation before creating symlink
                 print_status "Testing .NET installation..."
+                
+                # Set ICU environment for testing if needed
+                if [ -n "${DOTNET_SYSTEM_GLOBALIZATION_INVARIANT:-}" ]; then
+                    export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+                fi
+                
                 if $HOME/.dotnet/dotnet --version >/dev/null 2>&1; then
                     print_success ".NET installation is working"
                     
@@ -269,16 +275,76 @@ install_dependencies() {
     case $DISTRO in
         "ubuntu"|"debian")
             sudo apt-get update
-            sudo apt-get install -y curl wget unzip lsof --skip-broken
+            sudo apt-get install -y curl wget unzip lsof libicu-dev --skip-broken
             ;;
         "amzn"|"centos"|"rhel"|"fedora")
             if command -v dnf &> /dev/null; then
-                sudo dnf install -y curl wget unzip lsof --skip-broken
+                # For newer systems with dnf
+                sudo dnf install -y curl wget unzip lsof libicu --skip-broken
             else
+                # For Amazon Linux and older systems with yum
+                print_status "Installing ICU libraries for .NET compatibility..."
                 sudo yum install -y curl wget unzip lsof --skip-broken
+                
+                # Install ICU libraries - different package names for different versions
+                if sudo yum install -y libicu 2>/dev/null; then
+                    print_success "Installed libicu"
+                elif sudo yum install -y icu 2>/dev/null; then
+                    print_success "Installed icu"
+                elif sudo yum install -y libicu-devel 2>/dev/null; then
+                    print_success "Installed libicu-devel"
+                else
+                    print_warning "Could not install ICU via package manager, trying alternative..."
+                    
+                    # For Amazon Linux, try different approaches based on version
+                    if [ "$DISTRO" = "amzn" ]; then
+                        print_status "Trying Amazon Linux specific ICU installation..."
+                        
+                        # Check Amazon Linux version
+                        AL_VERSION=$(grep VERSION_ID /etc/os-release | cut -d'"' -f2 | cut -d'.' -f1)
+                        print_status "Amazon Linux version: $AL_VERSION"
+                        
+                        if [ "$AL_VERSION" = "2023" ]; then
+                            # Amazon Linux 2023
+                            print_status "Installing ICU for Amazon Linux 2023..."
+                            sudo dnf install -y libicu 2>/dev/null || \
+                            sudo dnf install -y icu 2>/dev/null || \
+                            sudo yum install -y libicu 2>/dev/null || true
+                        else
+                            # Amazon Linux 2 or older
+                            print_status "Installing ICU for Amazon Linux 2..."
+                            sudo amazon-linux-extras install -y epel 2>/dev/null || true
+                            sudo yum install -y libicu 2>/dev/null || \
+                            sudo yum install -y icu 2>/dev/null || true
+                        fi
+                        
+                        # Final check and fallback to invariant culture
+                        if ! ldconfig -p | grep -q libicu; then
+                            print_warning "ICU libraries still not found, configuring invariant culture mode"
+                            export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+                            echo 'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1' >> ~/.bashrc
+                            
+                            # Also add to current session
+                            export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+                        else
+                            print_success "ICU libraries successfully installed"
+                        fi
+                    fi
+                fi
             fi
             ;;
     esac
+    
+    # Verify ICU installation
+    print_status "Verifying ICU libraries..."
+    if ldconfig -p | grep -q libicu; then
+        print_success "ICU libraries are available"
+        ldconfig -p | grep libicu | head -3
+    else
+        print_warning "ICU libraries not found, setting invariant culture mode"
+        export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+        echo 'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1' >> ~/.bashrc
+    fi
 }
 
 # Function to build the application
@@ -331,6 +397,13 @@ create_systemd_service() {
     
     print_status "Using dotnet path: $DOTNET_PATH"
     
+    # Check if we need invariant culture mode
+    ICU_ENV=""
+    if [ -n "${DOTNET_SYSTEM_GLOBALIZATION_INVARIANT:-}" ]; then
+        ICU_ENV="Environment=DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1"
+        print_status "Adding invariant culture mode to systemd service"
+    fi
+    
     sudo tee /etc/systemd/system/graviton-bridge.service > /dev/null << EOF
 [Unit]
 Description=.NET Graviton Compatibility Test Application
@@ -350,6 +423,7 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
 Environment=ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ec2-user/.dotnet
+${ICU_ENV}
 
 [Install]
 WantedBy=multi-user.target
@@ -391,7 +465,7 @@ main() {
     # Detect distribution
     detect_distro
     
-    # Install dependencies
+    # Install dependencies (including ICU) BEFORE .NET installation
     install_dependencies
     
     # Check if .NET is already installed
