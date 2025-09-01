@@ -65,22 +65,56 @@ install_dotnet() {
             sudo dpkg -i packages-microsoft-prod.deb
             rm packages-microsoft-prod.deb
             
-            # Update package list and install .NET SDK
+            # Update package list and install .NET SDK (prioritize 10.0)
             sudo apt-get update
             sudo apt-get install -y apt-transport-https
-            sudo apt-get install -y dotnet-sdk-8.0 || sudo apt-get install -y dotnet-sdk-7.0 || sudo apt-get install -y dotnet-sdk-6.0
+            sudo apt-get install -y dotnet-sdk-10.0 || sudo apt-get install -y dotnet-sdk-8.0 || sudo apt-get install -y dotnet-sdk-7.0 || sudo apt-get install -y dotnet-sdk-6.0
             ;;
             
         "amzn"|"centos"|"rhel"|"fedora")
             print_status "Installing .NET SDK for Amazon Linux/CentOS/RHEL..."
             
-            # Add Microsoft package repository
-            sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
-            
-            if command -v dnf &> /dev/null; then
-                sudo dnf install -y dotnet-sdk-8.0 || sudo dnf install -y dotnet-sdk-7.0 || sudo dnf install -y dotnet-sdk-6.0
+            # For Amazon Linux, try different approaches based on version
+            if [ "$DISTRO" = "amzn" ]; then
+                print_status "Detected Amazon Linux - using Microsoft installation script for .NET 10.0"
+                
+                # Use the Microsoft installation script for Amazon Linux to get .NET 10.0
+                wget -q https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+                chmod +x dotnet-install.sh
+                
+                # Install .NET 10.0 first, then fallback to older versions
+                if ./dotnet-install.sh --channel 10.0; then
+                    print_success "Successfully installed .NET 10.0"
+                elif ./dotnet-install.sh --channel 8.0; then
+                    print_success "Successfully installed .NET 8.0"
+                elif ./dotnet-install.sh --channel 7.0; then
+                    print_success "Successfully installed .NET 7.0"
+                else
+                    print_error "Failed to install .NET SDK via installation script"
+                    rm dotnet-install.sh
+                    exit 1
+                fi
+                
+                # Add to PATH for current session and future sessions
+                export PATH="$PATH:$HOME/.dotnet"
+                echo 'export PATH="$PATH:$HOME/.dotnet"' >> ~/.bashrc
+                
+                # Create symlink for system-wide access
+                sudo ln -sf $HOME/.dotnet/dotnet /usr/local/bin/dotnet
+                
+                rm dotnet-install.sh
             else
-                sudo yum install -y dotnet-sdk-8.0 || sudo yum install -y dotnet-sdk-7.0 || sudo yum install -y dotnet-sdk-6.0
+                # For CentOS/RHEL/Fedora, use package manager
+                print_status "Using package manager for CentOS/RHEL/Fedora"
+                
+                # Add Microsoft package repository
+                sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
+                
+                if command -v dnf &> /dev/null; then
+                    sudo dnf install -y dotnet-sdk-10.0 || sudo dnf install -y dotnet-sdk-8.0 || sudo dnf install -y dotnet-sdk-7.0 || sudo dnf install -y dotnet-sdk-6.0
+                else
+                    sudo yum install -y dotnet-sdk-10.0 || sudo yum install -y dotnet-sdk-8.0 || sudo yum install -y dotnet-sdk-7.0 || sudo yum install -y dotnet-sdk-6.0
+                fi
             fi
             ;;
             
@@ -89,7 +123,21 @@ install_dotnet() {
             # Try to install using the Microsoft installation script
             wget -q https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
             chmod +x dotnet-install.sh
-            ./dotnet-install.sh --channel 10.0 || ./dotnet-install.sh --channel 7.0 || ./dotnet-install.sh --channel 6.0
+            
+            # Try .NET 10.0 first, then fallback to older versions
+            if ./dotnet-install.sh --channel 10.0; then
+                print_success "Successfully installed .NET 10.0"
+            elif ./dotnet-install.sh --channel 8.0; then
+                print_success "Successfully installed .NET 8.0"
+            elif ./dotnet-install.sh --channel 7.0; then
+                print_success "Successfully installed .NET 7.0"
+            elif ./dotnet-install.sh --channel 6.0; then
+                print_success "Successfully installed .NET 6.0"
+            else
+                print_error "Failed to install any .NET SDK version"
+                rm dotnet-install.sh
+                exit 1
+            fi
             
             # Add to PATH
             export PATH="$PATH:$HOME/.dotnet"
