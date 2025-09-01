@@ -95,7 +95,7 @@ install_dotnet() {
             # Try to install using the Microsoft installation script
             wget -q https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
             
-            export HOME=`pwd`
+            pwd
             chmod +x dotnet-install.sh
             ./dotnet-install.sh --channel 10.0 || ./dotnet-install.sh --channel 7.0 || ./dotnet-install.sh --channel 6.0
             
