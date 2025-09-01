@@ -1,6 +1,10 @@
 version: 0.0
 os: linux
 hooks:
+  BeforeInstall:
+    - location: chmod +x setup.sh
+      timeout: 180
+      runas: root
   ApplicationStart:
     - location: ./setup.sh
       timeout: 180

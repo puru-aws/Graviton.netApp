@@ -126,13 +126,13 @@ install_dependencies() {
     case $DISTRO in
         "ubuntu"|"debian")
             sudo apt-get update
-            sudo apt-get install -y curl wget unzip
+            sudo apt-get install -y curl wget unzip --skip-broken
             ;;
         "centos"|"rhel"|"fedora"|"amzn")
             if command -v dnf &> /dev/null; then
-                sudo dnf install -y curl wget unzip
+                sudo dnf install -y curl wget unzip --skip-broken
             else
-                sudo yum install -y curl wget unzip
+                sudo yum install -y curl wget unzip --skip-broken
             fi
             ;;
     esac
